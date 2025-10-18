@@ -1,179 +1,114 @@
-import * as vscode from 'vscode'
+/**
+ * Copyright 2025 Miguel Ángel Durán
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-export class SvgEditorProvider implements vscode.CustomTextEditorProvider {
-  public static register (context: vscode.ExtensionContext): vscode.Disposable {
-    const provider = new SvgEditorProvider(context)
-    const providerRegistration = vscode.window.registerCustomEditorProvider(
-      'betterSvg.svgEditor',
-      provider,
-      {
-        webviewOptions: {
-          retainContextWhenHidden: true,
-        },
-        supportsMultipleEditorsPerDocument: false,
-      }
-    )
-    return providerRegistration
-  }
+import * as vscode from 'vscode'
+import * as path from 'path'
+import * as fs from 'fs'
+
+export class SvgPreviewProvider implements vscode.WebviewViewProvider {
+  public static readonly viewType = 'betterSvg.preview'
+  private _view?: vscode.WebviewView
+  private _currentDocument?: vscode.TextDocument
+  private _isVisible: boolean = false
 
   constructor (private readonly context: vscode.ExtensionContext) {}
 
-  public async resolveCustomTextEditor (
-    document: vscode.TextDocument,
-    webviewPanel: vscode.WebviewPanel,
+  public resolveWebviewView (
+    webviewView: vscode.WebviewView,
+    context: vscode.WebviewViewResolveContext,
     _token: vscode.CancellationToken
-  ): Promise<void> {
-    webviewPanel.webview.options = {
+  ): void {
+    this._view = webviewView
+    this._isVisible = webviewView.visible
+
+    webviewView.webview.options = {
       enableScripts: true,
+      localResourceRoots: [this.context.extensionUri]
     }
 
-    webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview, document)
-
-    // Update webview when document changes
-    const changeDocumentSubscription = vscode.workspace.onDidChangeTextDocument(e => {
-      if (e.document.uri.toString() === document.uri.toString()) {
-        this.updateWebview(webviewPanel.webview, document)
-      }
+    // Track visibility changes
+    webviewView.onDidChangeVisibility(() => {
+      this._isVisible = webviewView.visible
     })
 
-    webviewPanel.onDidDispose(() => {
-      changeDocumentSubscription.dispose()
-    })
+    // Initialize with current document if it's an SVG
+    const editor = vscode.window.activeTextEditor
+    if (editor && editor.document.fileName.endsWith('.svg')) {
+      this._currentDocument = editor.document
+      webviewView.webview.html = this.getHtmlForWebview(webviewView.webview, editor.document)
+    } else {
+      webviewView.webview.html = this.getHtmlForWebview(webviewView.webview, null)
+    }
 
     // Handle messages from webview
-    webviewPanel.webview.onDidReceiveMessage(e => {
+    webviewView.webview.onDidReceiveMessage(e => {
       switch (e.type) {
         case 'update':
-          this.updateTextDocument(document, e.content)
+          if (this._currentDocument) {
+            this.updateTextDocument(this._currentDocument, e.content)
+          }
+          break
       }
     })
   }
 
-  private getHtmlForWebview (webview: vscode.Webview, document: vscode.TextDocument): string {
-    const svgContent = document.getText()
-    const escapedSvg = this.escapeHtml(svgContent)
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Better SVG Editor</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            display: flex;
-            height: 100vh;
-            font-family: var(--vscode-font-family);
-            background-color: var(--vscode-editor-background);
-            color: var(--vscode-editor-foreground);
-        }
-        .editor-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            border-right: 1px solid var(--vscode-panel-border);
-        }
-        .preview-container {
-            width: 400px;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            overflow: auto;
-            background-color: var(--vscode-sideBar-background);
-        }
-        .preview-title {
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            color: var(--vscode-foreground);
-        }
-        .preview-content {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            background: repeating-conic-gradient(
-                var(--vscode-editorWidget-background) 0% 25%,
-                var(--vscode-editorWidget-border) 0% 50%
-            ) 50% / 20px 20px;
-            border-radius: 4px;
-            overflow: auto;
-        }
-        textarea {
-            flex: 1;
-            width: 100%;
-            padding: 16px;
-            background-color: var(--vscode-editor-background);
-            color: var(--vscode-editor-foreground);
-            border: none;
-            outline: none;
-            font-family: var(--vscode-editor-font-family);
-            font-size: var(--vscode-editor-font-size);
-            resize: none;
-            tab-size: 2;
-        }
-        svg {
-            max-width: 100%;
-            max-height: 100%;
-        }
-    </style>
-</head>
-<body>
-    <div class="editor-container">
-        <textarea id="editor">${escapedSvg}</textarea>
-    </div>
-    <div class="preview-container">
-        <div class="preview-title">Preview</div>
-        <div class="preview-content" id="preview">
-            ${svgContent}
-        </div>
-    </div>
-
-    <script>
-        const vscode = acquireVsCodeApi();
-        const editor = document.getElementById('editor');
-        const preview = document.getElementById('preview');
-
-        let updateTimeout;
-
-        editor.addEventListener('input', () => {
-            clearTimeout(updateTimeout);
-            updateTimeout = setTimeout(() => {
-                const content = editor.value;
-                preview.innerHTML = content;
-                
-                vscode.postMessage({
-                    type: 'update',
-                    content: content
-                });
-            }, 300);
-        });
-
-        // Listen for updates from extension
-        window.addEventListener('message', event => {
-            const message = event.data;
-            if (message.type === 'update') {
-                editor.value = message.content;
-                preview.innerHTML = message.content;
-            }
-        });
-    </script>
-</body>
-</html>`
+  public updatePreview (document: vscode.TextDocument) {
+    if (this._view) {
+      this._currentDocument = document
+      this._view.webview.postMessage({
+        type: 'update',
+        content: document.getText()
+      })
+    }
   }
 
-  private updateWebview (webview: vscode.Webview, document: vscode.TextDocument) {
-    webview.postMessage({
-      type: 'update',
-      content: document.getText()
-    })
+  public clearPreview () {
+    if (this._view) {
+      this._currentDocument = undefined
+      this._view.webview.postMessage({
+        type: 'clear'
+      })
+    }
+  }
+
+  private getHtmlForWebview (webview: vscode.Webview, document: vscode.TextDocument | null): string {
+    const svgContent = document ? document.getText() : '<svg></svg>'
+    const escapedSvg = this.escapeHtml(svgContent)
+
+    // Get URIs for webview resources
+    const scriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.context.extensionUri, 'out', 'webview', 'main.js')
+    )
+    const stylesUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this.context.extensionUri, 'out', 'webview', 'styles.css')
+    )
+
+    // Read HTML template
+    const htmlPath = path.join(this.context.extensionPath, 'out', 'webview', 'index.html')
+    let html = fs.readFileSync(htmlPath, 'utf8')
+
+    // Replace placeholders
+    html = html
+      .replace(/{{cspSource}}/g, webview.cspSource)
+      .replace(/{{stylesUri}}/g, stylesUri.toString())
+      .replace(/{{scriptUri}}/g, scriptUri.toString())
+      .replace(/{{escapedSvg}}/g, escapedSvg)
+      .replace(/{{svgContent}}/g, svgContent)
+
+    return html
   }
 
   private updateTextDocument (document: vscode.TextDocument, content: string) {
