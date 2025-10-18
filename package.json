@@ -1,0 +1,65 @@
+{
+  "name": "better-svg",
+  "displayName": "Better SVG",
+  "description": "SVG editor with live preview and optimization",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCustomEditor:betterSvg.svgEditor"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "betterSvg.svgEditor",
+        "displayName": "Better SVG Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.svg"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "betterSvg.optimize",
+        "title": "Optimize SVG",
+        "icon": "$(zap)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "betterSvg.optimize",
+          "when": "resourceExtname == .svg",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.x",
+    "@types/vscode": "1.105.0",
+    "@typescript-eslint/eslint-plugin": "8.46.1",
+    "@typescript-eslint/parser": "8.46.1",
+    "eslint": "9.38.0",
+    "neostandard": "0.12.2",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "svgo": "4.0.0"
+  }
+}
