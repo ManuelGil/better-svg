@@ -30,6 +30,35 @@ Una extensión de Visual Studio Code para editar archivos SVG con vista previa e
 - **Cambiar currentColor**: Click en el icono de paleta + círculo de color
 - **Fondo oscuro**: Click en el icono de luna
 
+## Configuración
+
+La extensión incluye las siguientes opciones configurables (accesibles desde Configuración → Extensions → Better SVG):
+
+### `betterSvg.autoReveal`
+- **Tipo**: `boolean`
+- **Valor por defecto**: `true`
+- **Descripción**: Expande automáticamente el panel "SVG Preview" en el Explorer cuando abres un archivo SVG. Si está desactivado, tendrás que abrir manualmente el panel cada vez.
+
+### `betterSvg.autoCollapse`
+- **Tipo**: `boolean`
+- **Valor por defecto**: `true`
+- **Descripción**: Colapsa automáticamente el panel "SVG Preview" cuando cierras todos los archivos SVG o cambias a un archivo que no es SVG. Si está desactivado, el panel permanecerá abierto incluso cuando no haya archivos SVG activos.
+
+### `betterSvg.defaultColor`
+- **Tipo**: `string`
+- **Valor por defecto**: `"#ffffff"`
+- **Descripción**: Color por defecto para `currentColor` en la vista previa del SVG. Debe ser un color hexadecimal válido (ej: `#ffffff`, `#000`, `#ff5733`). Este color se aplicará al abrir un archivo SVG y puede ser cambiado manualmente usando el selector de color en el panel de preview.
+
+### Ejemplo de configuración en `settings.json`:
+
+```json
+{
+  "betterSvg.autoReveal": true,
+  "betterSvg.autoCollapse": true,
+  "betterSvg.defaultColor": "#ffffff"
+}
+```
+
 ## Estructura del proyecto
 
 ```
