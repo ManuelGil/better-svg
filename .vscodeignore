@@ -8,7 +8,11 @@ vsc-extension-quickstart.md
 **/.eslintrc.json
 **/*.map
 **/*.ts
+!dist/**/*.js
 node_modules
 out/
-src/
 esbuild.js
+eslint.config.js
+pnpm-lock.yaml
+CHANGES.md
+.npmrc
