@@ -16,7 +16,7 @@
 
 import * as vscode from 'vscode'
 import { SvgPreviewProvider } from './svgEditorProvider'
-import { optimize } from 'svgo'
+import { optimize } from 'svgo/browser'
 
 let previewProvider: SvgPreviewProvider
 
