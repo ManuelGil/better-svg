@@ -85,7 +85,7 @@ export class SvgPreviewProvider implements vscode.WebviewViewProvider {
   private getHtmlForWebview (webview: vscode.Webview, document: vscode.TextDocument | null): string {
     try {
       const svgContent = document ? document.getText() : '<svg></svg>'
-      const escapedSvg = this.escapeHtml(svgContent)
+
 
       // Get default color from configuration
       const config = vscode.workspace.getConfiguration('betterSvg')
@@ -132,8 +132,7 @@ export class SvgPreviewProvider implements vscode.WebviewViewProvider {
         .replace(/{{cspSource}}/g, webview.cspSource)
         .replace(/{{stylesUri}}/g, stylesUri.toString())
         .replace(/{{scriptUri}}/g, scriptUri.toString())
-        .replace(/{{escapedSvg}}/g, escapedSvg)
-        .replace(/{{svgContent}}/g, svgContent)
+        .replace(/{{svgContent}}/g, () => svgContent)
         .replace(/{{defaultColor}}/g, defaultColor)
 
       return html
@@ -157,14 +156,5 @@ export class SvgPreviewProvider implements vscode.WebviewViewProvider {
     vscode.workspace.applyEdit(edit)
   }
 
-  private escapeHtml (text: string): string {
-    const map: { [key: string]: string } = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    }
-    return text.replace(/[&<>"']/g, m => map[m])
-  }
+
 }
