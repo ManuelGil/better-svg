@@ -157,14 +157,28 @@ export async function optimizeSvgDocument (document: vscode.TextDocument) {
   const svgContent = document.getText()
 
   try {
+    const config = vscode.workspace.getConfiguration('betterSvg')
+    const removeClasses = config.get<boolean>('removeClasses', true)
+
+    const plugins: any[] = [
+      'preset-default',
+      'removeDoctype',
+      'removeComments',
+      'removeViewBox'
+    ]
+
+    if (removeClasses) {
+      plugins.push({
+        name: 'removeAttrs',
+        params: {
+          attrs: ['class']
+        }
+      })
+    }
+
     const result = optimize(svgContent, {
       multipass: true,
-      plugins: [
-        'preset-default',
-        'removeDoctype',
-        'removeComments',
-        'removeViewBox'
-      ]
+      plugins
     })
 
     const edit = new vscode.WorkspaceEdit()

@@ -97,6 +97,11 @@
           "default": "#ffffff",
           "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
           "description": "Default color for currentColor in the SVG preview (hex format, e.g., #ffffff)"
+        },
+        "betterSvg.removeClasses": {
+          "type": "boolean",
+          "default": true,
+          "description": "Remove class attributes from SVG elements during optimization"
         }
       }
     }
