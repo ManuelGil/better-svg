@@ -127,14 +127,31 @@ export function activate (context: vscode.ExtensionContext) {
 
     // Register optimize command
     context.subscriptions.push(
-      vscode.commands.registerCommand('betterSvg.optimize', async () => {
-        const editor = vscode.window.activeTextEditor
-        if (!editor) {
-          vscode.window.showErrorMessage('No active editor')
+      vscode.commands.registerCommand('betterSvg.optimize', async (uri?: vscode.Uri) => {
+        let document: vscode.TextDocument | undefined
+
+        // If URI is provided (e.g. from context menu or title button), open that document
+        if (uri && uri instanceof vscode.Uri) {
+          try {
+            document = await vscode.workspace.openTextDocument(uri)
+            await vscode.window.showTextDocument(document)
+          } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open document: ${error}`)
+            return
+          }
+        } else {
+          // Fallback to active text editor
+          const editor = vscode.window.activeTextEditor
+          if (editor) {
+            document = editor.document
+          }
+        }
+
+        if (!document) {
+          vscode.window.showErrorMessage('No active editor or file selected')
           return
         }
 
-        const document = editor.document
         if (!document.fileName.toLowerCase().endsWith('.svg')) {
           vscode.window.showErrorMessage('Not an SVG file')
           return
