@@ -195,5 +195,4 @@ export async function optimizeSvgDocument (document: vscode.TextDocument) {
   }
 }
 
-
 export function deactivate () {}

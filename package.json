@@ -104,6 +104,11 @@
           "description": "Remove class attributes from SVG elements during optimization"
         }
       }
+    },
+    "configurationDefaults": {
+      "workbench.editorAssociations": {
+        "*.svg": "default"
+      }
     }
   },
   "scripts": {
