@@ -1,8 +1,8 @@
 {
   "name": "better-svg",
   "displayName": "Better SVG",
-  "description": "Visual Studio Code extension for live SVG preview with color picker, zoom controls, and SVGO optimization.",
-  "version": "0.1.5", 
+  "description": "Visual Studio Code extension for SVG preview with color picker, zoom controls, and SVGO optimization.",
+  "version": "0.1.6", 
   "publisher": "midudev",
   "author": {
     "name": "Miguel Ángel Durán",
