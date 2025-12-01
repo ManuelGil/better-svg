@@ -1,6 +1,10 @@
 # Better SVG
 
-![image](https://github.com/user-attachments/assets/83a8e021-8eae-469e-b335-6acc48770552)
+<div align="center">
+
+![image](./images/screenshot.png)
+
+</div>
 
 <div align="center">
    A Visual Studio Code extension for editing SVG files with live preview and integrated optimization.
