@@ -19,6 +19,7 @@ import { SvgPreviewProvider } from './svgEditorProvider'
 import { SvgGutterPreview, SvgHoverProvider } from './svgGutterPreview'
 import { optimize } from 'svgo/browser'
 import { prepareForOptimization, finalizeAfterOptimization } from './svgTransform'
+import { SUPPORTED_LANGUAGES } from './consts'
 
 let previewProvider: SvgPreviewProvider
 let gutterPreview: SvgGutterPreview
@@ -51,25 +52,11 @@ export function activate (context: vscode.ExtensionContext) {
 
     // Register SVG Hover Provider for all supported languages
     const svgHoverProvider = new SvgHoverProvider()
-    const supportedLanguages = [
-      'svg',
-      'xml',
-      'html',
-      'javascript',
-      'javascriptreact',
-      'typescript',
-      'typescriptreact',
-      'vue',
-      'svelte',
-      'astro',
-      'php',
-      'erb',
-      'ejs'
-    ]
+    
 
     context.subscriptions.push(
       vscode.languages.registerHoverProvider(
-        supportedLanguages.map(lang => ({ language: lang })),
+        SUPPORTED_LANGUAGES.map(lang => ({ language: lang })),
         svgHoverProvider
       )
     )
@@ -288,7 +275,9 @@ function getSvgoPlugins (removeClasses: boolean): any[] {
         overrides: {
           removeViewBox: false,
           // Preserve important attributes by default
-          cleanupIds: false
+          cleanupIds: false,
+          // Disable removing unknown attributes (like onClick, data-*) when preserving classes (inline mode)
+          removeUnknownsAndDefaults: removeClasses
         }
       }
     },
