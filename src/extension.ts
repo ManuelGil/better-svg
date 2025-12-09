@@ -16,7 +16,7 @@
 
 import * as vscode from 'vscode'
 import { SvgPreviewProvider } from './svgEditorProvider'
-import { SvgGutterPreview } from './svgGutterPreview'
+import { SvgGutterPreview, SvgHoverProvider } from './svgGutterPreview'
 import { optimize } from 'svgo/browser'
 
 let previewProvider: SvgPreviewProvider
@@ -47,6 +47,31 @@ export function activate (context: vscode.ExtensionContext) {
     if (vscode.window.activeTextEditor) {
       gutterPreview.updateDecorations(vscode.window.activeTextEditor)
     }
+
+    // Register SVG Hover Provider for all supported languages
+    const svgHoverProvider = new SvgHoverProvider()
+    const supportedLanguages = [
+      'svg',
+      'xml',
+      'html',
+      'javascript',
+      'javascriptreact',
+      'typescript',
+      'typescriptreact',
+      'vue',
+      'svelte',
+      'astro',
+      'php',
+      'erb',
+      'ejs'
+    ]
+
+    context.subscriptions.push(
+      vscode.languages.registerHoverProvider(
+        supportedLanguages.map(lang => ({ language: lang })),
+        svgHoverProvider
+      )
+    )
 
     // Update decorations when active editor changes
     context.subscriptions.push(
