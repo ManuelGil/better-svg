@@ -80,4 +80,106 @@ describe('Vue Support', () => {
         assert.strictEqual(wasJsx, true)
         assert.ok(preparedSvg.includes('data-better-svg-temp-__AT__click="handleClick"'))
     })
+
+    it('should NOT convert kebab-case to camelCase in Astro/Vue (useCamelCase: false)', () => {
+        const input = '<svg class:list={["foo"]} stroke-width="2"></svg>'
+        const options = { useCamelCase: false }
+        const { preparedSvg, wasJsx } = prepareForOptimization(input, options)
+        
+        assert.ok(wasJsx)
+        // Should preserve stroke-width as is
+        assert.ok(!preparedSvg.includes('strokeWidth'))
+        assert.ok(preparedSvg.includes('stroke-width'))
+        
+        const final = finalizeAfterOptimization(preparedSvg, wasJsx, options)
+        assert.strictEqual(final, input)
+    })
+
+    it('should handle Astro define:vars with style object', () => {
+        const input = '<svg define:vars={{ color: "red" }}></svg>'
+        const options = { useCamelCase: false }
+        const { preparedSvg, wasJsx } = prepareForOptimization(input, options)
+        
+        assert.ok(wasJsx)
+        assert.ok(preparedSvg.includes('data-better-svg-temp-define__COLON__vars'))
+        
+        const final = finalizeAfterOptimization(preparedSvg, wasJsx, options)
+        assert.strictEqual(final, input)
+    })
+})
+
+describe('Svelte Support', () => {
+    const options = { useCamelCase: false }
+
+    it('should handle Svelte on:event handlers', () => {
+        const input = '<svg on:click={handleClick} on:mousedown={() => {}}></svg>'
+        const { preparedSvg, wasJsx } = prepareForOptimization(input, options)
+        
+        assert.ok(wasJsx)
+        assert.ok(preparedSvg.includes('data-better-svg-temp-on__COLON__click'))
+        assert.ok(preparedSvg.includes('data-better-svg-temp-on__COLON__mousedown'))
+        
+        const final = finalizeAfterOptimization(preparedSvg, wasJsx, options)
+        assert.strictEqual(final, input)
+    })
+
+    it('should handle Svelte bind:this and other bindings', () => {
+        const input = '<svg bind:this={svgRef} bind:clientWidth={w}></svg>'
+        const { preparedSvg, wasJsx } = prepareForOptimization(input, options)
+        
+        assert.ok(wasJsx)
+        assert.ok(preparedSvg.includes('data-better-svg-temp-bind__COLON__this'))
+        
+        const final = finalizeAfterOptimization(preparedSvg, wasJsx, options)
+        assert.strictEqual(final, input)
+    })
+
+    it('should handle Svelte class:active shorthand', () => {
+        const input = '<svg class:active={isActive} class:red></svg>'
+        const { preparedSvg, wasJsx } = prepareForOptimization(input, options)
+        
+        assert.ok(wasJsx)
+        assert.ok(preparedSvg.includes('data-better-svg-temp-class__COLON__active'))
+        assert.ok(preparedSvg.includes('data-better-svg-temp-class__COLON__red'))
+        
+        const final = finalizeAfterOptimization(preparedSvg, wasJsx, options)
+        assert.strictEqual(final, input)
+    })
+
+    it('should handle Svelte interpolations in text', () => {
+        const input = '<svg><text>{Math.random() > 0.5 ? "H" : "L"}</text></svg>'
+        const { preparedSvg, wasJsx } = prepareForOptimization(input, options)
+        
+        assert.ok(wasJsx)
+        assert.ok(preparedSvg.includes('__JSX_BASE64__'))
+        
+        const final = finalizeAfterOptimization(preparedSvg, wasJsx, options)
+        assert.strictEqual(final, input)
+    })
+})
+
+describe('Mixed Framework Edge Cases', () => {
+    it('should handle Vue v-bind object shorthand', () => {
+        const input = '<svg v-bind="{ id: 1, class: \'foo\' }"></svg>'
+        const options = { useCamelCase: false }
+        const { preparedSvg, wasJsx } = prepareForOptimization(input, options)
+        
+        assert.ok(wasJsx)
+        assert.ok(preparedSvg.includes('data-better-svg-temp-v-bind'))
+        
+        const final = finalizeAfterOptimization(preparedSvg, wasJsx, options)
+        assert.strictEqual(final, input)
+    })
+
+    it('should handle Vue shorthand for events with modifiers', () => {
+        const input = '<svg @click.stop.prevent="doSth"></svg>'
+        const options = { useCamelCase: false }
+        const { preparedSvg, wasJsx } = prepareForOptimization(input, options)
+        
+        assert.ok(wasJsx)
+        assert.ok(preparedSvg.includes('data-better-svg-temp-__AT__click__DOT__stop__DOT__prevent'))
+        
+        const final = finalizeAfterOptimization(preparedSvg, wasJsx, options)
+        assert.strictEqual(final, input)
+    })
 })
