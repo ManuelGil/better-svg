@@ -29,6 +29,15 @@ function decodeJsx (content: string): string | null {
   return null
 }
 
+export interface OptimizationOptions {
+  /**
+   * Whether to transform attributes to/from camelCase (e.g. strokeWidth <-> stroke-width)
+   * and class <-> className.
+   * Typically true for React/JSX, false for Astro/Vue/SVG.
+   */
+  useCamelCase?: boolean
+}
+
 /**
  * Map of JSX camelCase attributes to SVG kebab-case attributes
  */
@@ -114,21 +123,18 @@ export function isJsxSvg (svgContent: string): boolean {
     }
   }
 
-  // Check for Astro directives (client:load, client:only, etc.)
-  if (/(?:\s|^)client:[a-z-]+/.test(svgContent)) {
-    return true
-  }
-
-  // Check for Vue directives (v-if, v-bind:prop, :prop, @click)
-  // Search for :, @ or v- followed by a character
-  // We use a regex that matches them as standalone "words" or after spaces
-  const vueRegex = /(?:\s|^)(v-|[:@])[a-zA-Z0-9-:]+/g
-  let match
-  while ((match = vueRegex.exec(svgContent))) {
-    const attr = match[0].trim()
-    // Avoid matching standard namespaces
-    if (!/^(xmlns|xlink|xml|sketch):/.test(attr)) {
-      return true
+  // Check for Astro/Svelte/Vue directives with : or @
+  // Svelte: on:, bind:, class:, use:, let:, animate:, transition:
+  // Vue: v-, :, @
+  // Astro: client:
+  if (/(?:\s|^)(v-|client:|on:|bind:|class:|use:|let:|animate:|transition:|[:@])[a-zA-Z0-9-.:]+/.test(svgContent)) {
+    // Verify it's not a standard namespace
+    const matches = svgContent.match(/(?:\s|^)(v-|client:|on:|bind:|class:|use:|let:|animate:|transition:|[:@])[a-zA-Z0-9-.:]+/g)
+    if (matches) {
+      for (const m of matches) {
+        const attr = m.trim()
+        if (!/^(xmlns|xlink|xml|sketch):/.test(attr)) return true
+      }
     }
   }
 
@@ -142,8 +148,17 @@ export function isJsxSvg (svgContent: string): boolean {
     return true
   }
 
+  // Check for any other {braces} or {{interpolation}} (JSX text content or template interpolations)
+  // We exclude <style> tags as they naturally contain braces in CSS
+  const contentWithoutStyles = svgContent.replace(/<style[\s\S]*?<\/style>/gi, '')
+  if (/\{[\s\S]*?\}/.test(contentWithoutStyles)) {
+    return true
+  }
+
   return false
 }
+
+
 
 
 
@@ -219,6 +234,140 @@ function replaceJsxExpressions (content: string): string {
   return result
 }
 
+function replaceTextInterpolations (content: string): string {
+  let result = ''
+  let currentIndex = 0
+
+  while (currentIndex < content.length) {
+    // We only care about { that are between > and <
+    const startIdx = content.indexOf('{', currentIndex)
+    if (startIdx === -1) {
+      result += content.slice(currentIndex)
+      break
+    }
+
+    // Heuristic: check if we are likely in text content
+    // We look back for > and ensure no < between > and {
+    const lastOpen = content.lastIndexOf('>', startIdx)
+    const lastClose = content.lastIndexOf('<', startIdx)
+    const isInsideTag = lastOpen !== -1 && lastOpen > lastClose
+
+    // If preceded by = or not inside a tag-content area, skip
+    if ((startIdx > 0 && content[startIdx - 1] === '=') || !isInsideTag) {
+        result += content.slice(currentIndex, startIdx + 1)
+        currentIndex = startIdx + 1
+        continue
+    }
+
+    // Skip if it is a JSX comment start
+    if (content.startsWith('/*', startIdx + 1)) {
+        result += content.slice(currentIndex, startIdx + 1)
+        currentIndex = startIdx + 1
+        continue
+    }
+
+    // Append everything before "{"
+    result += content.slice(currentIndex, startIdx)
+
+    // Find matching brace
+    let balance = 1
+    let j = startIdx + 1
+    let found = false
+    let inString = false
+    let stringChar = ''
+
+    while (j < content.length) {
+      const char = content[j]
+      const prevChar = content[j - 1]
+      if (inString) {
+        if (char === stringChar && prevChar !== '\\') inString = false
+      } else {
+        if (char === '"' || char === '\'' || char === '`') { inString = true; stringChar = char }
+        else if (char === '{') balance++
+        else if (char === '}') balance--
+      }
+      j++
+      if (!inString && balance === 0) { found = true; break }
+    }
+
+    if (found) {
+      const expression = content.slice(startIdx + 1, j - 1)
+      result += encodeJsx(expression)
+      currentIndex = j
+    } else {
+      result += '{'
+      currentIndex = startIdx + 1
+    }
+  }
+  return result
+}
+
+
+
+
+function replaceJsxSpreads (content: string): string {
+  let result = ''
+  let currentIndex = 0
+  let spreadIndex = 0
+
+  while (currentIndex < content.length) {
+    const startIdx = content.indexOf('{...', currentIndex)
+    if (startIdx === -1) {
+      result += content.slice(currentIndex)
+      break
+    }
+
+    // Append everything before "{..."
+    result += content.slice(currentIndex, startIdx)
+
+    // Find matching brace
+    let balance = 1
+    let j = startIdx + 4
+    let found = false
+    let inString = false
+    let stringChar = ''
+
+    while (j < content.length) {
+      const char = content[j]
+      const prevChar = content[j - 1]
+
+      if (inString) {
+        if (char === stringChar && prevChar !== '\\') {
+          inString = false
+        }
+      } else {
+        if (char === '"' || char === '\'' || char === '`') {
+          inString = true
+          stringChar = char
+        } else if (char === '{') {
+          balance++
+        } else if (char === '}') {
+          balance--
+        }
+      }
+
+      j++
+
+      if (!inString && balance === 0) {
+        found = true
+        break
+      }
+    }
+
+    if (found) {
+      const expression = content.slice(startIdx + 4, j - 1).trim()
+      result += `data-spread-${spreadIndex++}="${encodeJsx(expression)}"`
+      currentIndex = j
+    } else {
+      result += '{...'
+      currentIndex = startIdx + 4
+    }
+  }
+
+  return result
+}
+
+
 function removeJsxComments (content: string): string {
   // Remove block comments {/* ... */}
   content = content.replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
@@ -232,37 +381,46 @@ function protectEncodedAttributes (content: string): string {
   // Protect any attribute that has a Base64 encoded value OR is a framework directive
   // Matches: attr="..." or just attr (boolean)
   // We avoid \b because it doesn't work with prefix like : or @
-  return content.replace(/(?:\s|^)([a-zA-Z0-9-:@]+)(?:=(["'])([\s\S]*?)\2)?/g, (match, attr, quote, value) => {
-    const prefix = match.startsWith(' ') ? ' ' : ''
-    
+  return content.replace(/([a-zA-Z0-9-:@.]+)(?:=(["'])([\s\S]*?)\2)?/g, (match, attr, quote, value, offset) => {
+    // Ensure it's an attribute (preceded by whitespace or <tag)
+    const prevChar = content[offset - 1]
+    if (prevChar && !/\s|<|>/.test(prevChar)) return match
+
     // Skip if it's already a temp attribute
     if (attr.startsWith('data-better-svg-temp-')) return match
 
     // Decide if we should protect this attribute
     const isEncoded = value?.includes(BASE64_PREFIX)
-    const isDirective = /^(client:|v-|[:@]|class:list)/.test(attr) && !/^(xmlns|xlink|xml|sketch):/.test(attr)
+    const isDirective = /^(client:|v-|on:|bind:|class:|use:|let:|animate:|transition:|[:@])/.test(attr) && 
+                        !/^(xmlns|xlink|xml|sketch):/.test(attr)
     
     if (!isEncoded && !isDirective) {
       return match
     }
 
     // Sanitize attribute name for use in data- attribute
-    const safeAttr = attr.replace(/:/g, '__COLON__').replace(/@/g, '__AT__')
+    const safeAttr = attr
+      .replace(/:/g, '__COLON__')
+      .replace(/@/g, '__AT__')
+      .replace(/\./g, '__DOT__')
     
     if (value !== undefined) {
-      return `${prefix}data-better-svg-temp-${safeAttr}="${value}"`
+      return `data-better-svg-temp-${safeAttr}="${value}"`
     } else {
-      // Boolean attribute (e.g. client:only)
-      return `${prefix}data-better-svg-temp-${safeAttr}="__BOOLEAN__"`
+      // Boolean attribute
+      return `data-better-svg-temp-${safeAttr}="__BOOLEAN__"`
     }
   })
 }
 
+
 function restoreEncodedAttributes (content: string): string {
   // Restore protected attributes
-  // data-better-svg-temp-ATTR="..." -> ATTR="..."
   return content.replace(/data-better-svg-temp-([a-zA-Z0-9-_]+)="([^"]*)"/g, (match, safeAttr, value) => {
-    const attr = safeAttr.replace(/__COLON__/g, ':').replace(/__AT__/g, '@')
+    const attr = safeAttr
+      .replace(/__COLON__/g, ':')
+      .replace(/__AT__/g, '@')
+      .replace(/__DOT__/g, '.')
     
     if (value === '__BOOLEAN__') {
       return attr
@@ -274,30 +432,32 @@ function restoreEncodedAttributes (content: string): string {
 /**
  * Converts JSX SVG syntax to valid SVG XML
  * - Converts expression values {2} to "2"
- * - Converts className to class
- * - Converts camelCase attributes to kebab-case
+ * - Converts className to class (if useCamelCase is true)
+ * - Converts camelCase attributes to kebab-case (if useCamelCase is true)
  */
-export function convertJsxToSvg (svgContent: string): string {
+export function convertJsxToSvg (svgContent: string, options: OptimizationOptions = { useCamelCase: true }): string {
   // Remove JSX comments first to avoid parsing issues
   svgContent = removeJsxComments(svgContent)
 
   // Convert JSX expression values like {2} to "2"
-  // Handle both simple values and expressions using the robust parser
   svgContent = replaceJsxExpressions(svgContent)
 
+  // Convert text interpolations like <text>{val}</text>
+  svgContent = replaceTextInterpolations(svgContent)
+
   // Convert spread attributes {...props} to data-spread-i="props"
-  let spreadIndex = 0
-  svgContent = svgContent.replace(/\{\.\.\.([^}]+)\}/g, (_match, expression) => {
-    return `data-spread-${spreadIndex++}="${encodeJsx(expression)}"`
-  })
+  // Using robust parser for nested braces
+  svgContent = replaceJsxSpreads(svgContent)
 
-  // Convert className to class
-  svgContent = svgContent.replace(/\bclassName=/g, 'class=')
+  if (options.useCamelCase) {
+    // Convert className to class
+    svgContent = svgContent.replace(/\bclassName=/g, 'class=')
 
-  // Convert all JSX camelCase attributes to SVG kebab-case
-  for (const [jsx, svg] of Object.entries(jsxToSvgAttributeMap)) {
-    const regex = new RegExp(`\\b${jsx}=`, 'g')
-    svgContent = svgContent.replace(regex, `${svg}=`)
+    // Convert all JSX camelCase attributes to SVG kebab-case
+    for (const [jsx, svg] of Object.entries(jsxToSvgAttributeMap)) {
+      const regex = new RegExp(`\\b${jsx}=`, 'g')
+      svgContent = svgContent.replace(regex, `${svg}=`)
+    }
   }
   
   // Protect all attributes with encoded values from SVGO
@@ -309,23 +469,24 @@ export function convertJsxToSvg (svgContent: string): string {
 
 /**
  * Converts SVG XML syntax back to JSX
- * - Converts class to className
- * - Converts kebab-case attributes to camelCase
+ * - Converts class to className (if useCamelCase is true)
+ * - Converts kebab-case attributes to camelCase (if useCamelCase is true)
  */
-export function convertSvgToJsx (svgContent: string): string {
+export function convertSvgToJsx (svgContent: string, options: OptimizationOptions = { useCamelCase: true }): string {
   // Restore protected attributes first
   svgContent = restoreEncodedAttributes(svgContent)
 
-  // Convert class to className
-  svgContent = svgContent.replace(/\bclass=/g, 'className=')
+  if (options.useCamelCase) {
+    // Convert class to className
+    svgContent = svgContent.replace(/\bclass=/g, 'className=')
 
-
-  // Convert all SVG kebab-case attributes to JSX camelCase
-  for (const [svg, jsx] of Object.entries(svgToJsxAttributeMap)) {
-    // Need to escape hyphens and colons for regex
-    const escapedSvg = svg.replace(/[-:]/g, '\\$&')
-    const regex = new RegExp(`\\b${escapedSvg}=`, 'g')
-    svgContent = svgContent.replace(regex, `${jsx}=`)
+    // Convert all SVG kebab-case attributes to JSX camelCase
+    for (const [svg, jsx] of Object.entries(svgToJsxAttributeMap)) {
+      // Need to escape hyphens and colons for regex
+      const escapedSvg = svg.replace(/[-:]/g, '\\$&')
+      const regex = new RegExp(`\\b${escapedSvg}=`, 'g')
+      svgContent = svgContent.replace(regex, `${jsx}=`)
+    }
   }
 
   // Restore spread attributes
@@ -347,11 +508,7 @@ export function convertSvgToJsx (svgContent: string): string {
 
   // Decode Base64 expressions in attributes
   // content="encoded" -> content={expression}
-  // This matches any attribute with our specific prefix/suffix pattern
-  // Use a regex that captures the attribute name and the quoted value
-  // We handle both double and single quotes
-  // We also handle cases where potential quoting issues might arise (though protected attrs help)
-  svgContent = svgContent.replace(/(\w+)=(["'])(__JSX_BASE64__[^"']*?__)\2/g, (match, attr, quote, value) => {
+  svgContent = svgContent.replace(/([a-zA-Z0-9-:@.]+)=(["'])(__JSX_BASE64__[^"']*?__)\2/g, (match, attr, quote, value) => {
     const decoded = decodeJsx(value)
     if (decoded !== null) {
       return `${attr}={${decoded}}`
@@ -359,14 +516,25 @@ export function convertSvgToJsx (svgContent: string): string {
     return match
   })
 
+  // Decode Base64 expressions in text content
+  // >encoded< -> >{expression}<
+  svgContent = svgContent.replace(/>(__JSX_BASE64__[^<]*?__)</g, (match, value) => {
+    const decoded = decodeJsx(value)
+    if (decoded !== null) {
+        return `>{${decoded}}<`
+    }
+    return match
+  })
+
   return svgContent
 }
+
 
 /**
  * Prepares JSX SVG content for SVGO optimization
  * Returns the converted SVG and metadata about whether conversion was applied
  */
-export function prepareForOptimization (svgContent: string): {
+export function prepareForOptimization (svgContent: string, options: OptimizationOptions = { useCamelCase: true }): {
   preparedSvg: string
   wasJsx: boolean
 } {
@@ -374,7 +542,7 @@ export function prepareForOptimization (svgContent: string): {
 
   if (wasJsx) {
     return {
-      preparedSvg: convertJsxToSvg(svgContent),
+      preparedSvg: convertJsxToSvg(svgContent, options),
       wasJsx: true
     }
   }
@@ -388,9 +556,9 @@ export function prepareForOptimization (svgContent: string): {
 /**
  * Converts optimized SVG back to JSX if the original was JSX
  */
-export function finalizeAfterOptimization (optimizedSvg: string, wasJsx: boolean): string {
+export function finalizeAfterOptimization (optimizedSvg: string, wasJsx: boolean, options: OptimizationOptions = { useCamelCase: true }): string {
   if (wasJsx) {
-    return convertSvgToJsx(optimizedSvg)
+    return convertSvgToJsx(optimizedSvg, options)
   }
 
   return optimizedSvg
