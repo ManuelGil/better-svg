@@ -424,3 +424,77 @@ describe('spread attributes', () => {
   })
 })
 
+describe('Regressions & Edge Cases', () => {
+
+    it('should preserve className={className} (Base64 encoded)', () => {
+        const input = `
+            <svg className={className} xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
+            <path d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' />
+            <polyline points='9 22 9 12 15 12 15 22' />
+            </svg>`
+
+        // 1. Prepare
+        const { preparedSvg, wasJsx } = prepareForOptimization(input)
+        
+        // 2. Simulate SVGO (identity)
+        const optimizedSvg = preparedSvg 
+
+        // 3. Finalize
+        const finalResult = finalizeAfterOptimization(optimizedSvg, wasJsx)
+
+        assert.ok(finalResult.includes('className={className}'), `Expected className={className}, got: ${finalResult}`)
+        assert.ok(!finalResult.includes('className="className"'), 'Should not contain string literal className="className"')
+    })
+
+    it('should preserve style object style={{ color: "red" }}', () => {
+        const input = '<svg style={{ color: "red", marginTop: 10 }}><path /></svg>'
+        
+        const { preparedSvg, wasJsx } = prepareForOptimization(input)
+        
+        // Check intermediate state: style should be hidden from SVGO
+        assert.ok(preparedSvg.includes('data-better-svg-style='), 'Style should be renamed')
+        assert.ok(!preparedSvg.includes(' style='), 'Original style attribute should be gone')
+
+        // Simulate SVGO
+        const optimizedSvg = preparedSvg 
+
+        const finalResult = finalizeAfterOptimization(optimizedSvg, wasJsx)
+        
+        assert.ok(finalResult.includes('style={{ color: "red", marginTop: 10 }}') || 
+                  finalResult.includes('style={{color:"red",marginTop:10}}'), 
+                  `Style object destroyed: ${finalResult}`)
+    })
+
+    it('should handle the specific Icon2 component causing issues', () => {
+        const input = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" className={className} viewBox="0 0 24 24" style={{ color: 'red' }}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M12 8v8m-4-4h8"/></svg>`
+        
+        const { preparedSvg, wasJsx } = prepareForOptimization(input)
+        
+        // Verify key protections
+        assert.ok(preparedSvg.includes('data-better-svg-style='))
+        // strokeWidth={2} -> encoded
+        // className={className} -> encoded className with Base64
+        // The original string has strokeWidth="2" (string), not expression {2}. 
+        // Wait, the user provided: strokeWidth="2" (string). So it stays as stroke-width="2".
+        // className={className} (expression). -> class="__JSX_BASE64...__"
+        
+        const optimizedSvg = preparedSvg
+        const finalResult = finalizeAfterOptimization(optimizedSvg, wasJsx)
+
+        // Verify restoration
+        assert.ok(finalResult.includes('className={className}'))
+        assert.ok(finalResult.includes("style={{ color: 'red' }}"))
+        // String attributes should remain camelCase in JSX if they map
+        assert.ok(finalResult.includes('strokeWidth="2"') || finalResult.includes('strokeWidth=\'2\''))
+    })
+
+    it('should preserve namespaced/dotted components like <motion.path /> if SVGO allows them', () => {
+        const input = '<svg><motion.path d="M0 0 h10" animate={{ x: 100 }} /></svg>'
+        const { preparedSvg, wasJsx } = prepareForOptimization(input)
+        const finalResult = finalizeAfterOptimization(preparedSvg, wasJsx)
+
+        assert.ok(finalResult.includes('<motion.path'), `motion.path lost: ${finalResult}`)
+        assert.ok(finalResult.includes('animate={{ x: 100 }}'), `animate prop lost: ${finalResult}`)
+    })
+})
+
