@@ -114,8 +114,19 @@ export function isJsxSvg (svgContent: string): boolean {
     }
   }
 
+  // Check for JSX comments
+  if (/\{\/\*[\s\S]*?\*\/\}/.test(svgContent)) {
+    return true
+  }
+
+  // Check for line comments // (common in JSX)
+  if (/^\s*\/\//m.test(svgContent)) {
+    return true
+  }
+
   return false
 }
+
 
 /**
  * Converts JSX SVG syntax to valid SVG XML
@@ -189,6 +200,29 @@ function replaceJsxExpressions (content: string): string {
   return result
 }
 
+function removeJsxComments (content: string): string {
+  // Remove block comments {/* ... */}
+  content = content.replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+  // Remove line comments // ... that are on their own line (common in JSX)
+  // We use the 'm' flag so ^ matches start of line
+  content = content.replace(/^\s*\/\/.*$/gm, '')
+  return content
+}
+
+function protectEncodedAttributes (content: string): string {
+  // Protect any attribute that has a Base64 encoded value
+  // We rename the attribute to data-better-svg-temp-ATTR to hide it from SVGO
+  // This prevents SVGO from modifying the encoded string (e.g. lowercasing, minifying colors)
+  // Matches: attr="__JSX_BASE64__...__"
+  return content.replace(/([a-zA-Z0-9-:]+)=(["'])(__JSX_BASE64__[^"']*?__)\2/g, 'data-better-svg-temp-$1=$2$3$2')
+}
+
+function restoreEncodedAttributes (content: string): string {
+  // Restore protected attributes
+  // data-better-svg-temp-ATTR="..." -> ATTR="..."
+  return content.replace(/data-better-svg-temp-([a-zA-Z0-9-:]+)=/g, '$1=')
+}
+
 /**
  * Converts JSX SVG syntax to valid SVG XML
  * - Converts expression values {2} to "2"
@@ -196,6 +230,9 @@ function replaceJsxExpressions (content: string): string {
  * - Converts camelCase attributes to kebab-case
  */
 export function convertJsxToSvg (svgContent: string): string {
+  // Remove JSX comments first to avoid parsing issues
+  svgContent = removeJsxComments(svgContent)
+
   // Convert JSX expression values like {2} to "2"
   // Handle both simple values and expressions using the robust parser
   svgContent = replaceJsxExpressions(svgContent)
@@ -214,17 +251,10 @@ export function convertJsxToSvg (svgContent: string): string {
     const regex = new RegExp(`\\b${jsx}=`, 'g')
     svgContent = svgContent.replace(regex, `${svg}=`)
   }
-
-  // Rename event handlers to avoid security blocking in previews
-  // data-jsx-event-onClick="..."
-  svgContent = svgContent.replace(/\b(on[A-Z]\w*)=/g, 'data-jsx-event-$1=')
-
-  // Rename 'style' attribute to prevent SVGO from trying to parse JSX objects (Base64) as CSS
-  // Only rename if it seems to be a JSX style (or we can just rename all styles to be safe and avoid minification side-effects on expressions)
-  // We'll rename all 'style=' to 'data-better-svg-style='
-  // Use a regex that ensures we don't match 'font-style=' or other hyphenated attributes ending in style
-  // We check that it's preceded by whitespace or start of string
-  svgContent = svgContent.replace(/(\s|^)style=/g, '$1data-better-svg-style=')
+  
+  // Protect all attributes with encoded values from SVGO
+  // This handles style, event handlers, and anything else that is dynamically encoded
+  svgContent = protectEncodedAttributes(svgContent)
 
   return svgContent
 }
@@ -235,8 +265,12 @@ export function convertJsxToSvg (svgContent: string): string {
  * - Converts kebab-case attributes to camelCase
  */
 export function convertSvgToJsx (svgContent: string): string {
+  // Restore protected attributes first
+  svgContent = restoreEncodedAttributes(svgContent)
+
   // Convert class to className
   svgContent = svgContent.replace(/\bclass=/g, 'className=')
+
 
   // Convert all SVG kebab-case attributes to JSX camelCase
   for (const [svg, jsx] of Object.entries(svgToJsxAttributeMap)) {
@@ -263,18 +297,12 @@ export function convertSvgToJsx (svgContent: string): string {
     return `{...${unescaped}}`
   })
 
-  // Restore event handlers to simple attributes (value still encoded)
-  // Matches data-jsx-event-onClick="..." and converts back to onClick="..."
-  svgContent = svgContent.replace(/\bdata-jsx-event-(on[A-Z]\w*)="([^"]*)"/g, '$1="$2"')
-
-  // Restore 'style' attribute
-  svgContent = svgContent.replace(/\bdata-better-svg-style=/g, 'style=')
-
   // Decode Base64 expressions in attributes
   // content="encoded" -> content={expression}
   // This matches any attribute with our specific prefix/suffix pattern
   // Use a regex that captures the attribute name and the quoted value
   // We handle both double and single quotes
+  // We also handle cases where potential quoting issues might arise (though protected attrs help)
   svgContent = svgContent.replace(/(\w+)=(["'])(__JSX_BASE64__[^"']*?__)\2/g, (match, attr, quote, value) => {
     const decoded = decodeJsx(value)
     if (decoded !== null) {
