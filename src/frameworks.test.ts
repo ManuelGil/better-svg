@@ -27,12 +27,27 @@ describe('Astro Support', () => {
         // class:list is a valid attribute name with : (namespace-like)
         // It has expression value ={...}
         assert.ok(wasJsx)
-        assert.ok(preparedSvg.includes('data-better-svg-temp-class:list='))
+        assert.ok(preparedSvg.includes('data-better-svg-temp-class__COLON__list='))
         
         const final = finalizeAfterOptimization(preparedSvg, wasJsx)
         assert.strictEqual(final, input)
     })
+
+    it('should preserve Astro boolean directives like client:only', () => {
+        const input = '<svg client:only xmlns="http://www.w3.org/2000/svg"></svg>'
+        const { preparedSvg, wasJsx } = prepareForOptimization(input)
+        
+        // isJsxSvg needs to recognize client:only as a reason to be JSX/Astro
+        assert.ok(wasJsx, 'Should detect client:only as Astro/JSX')
+        
+        // Should be protected
+        assert.ok(preparedSvg.includes('data-better-svg-temp-client__COLON__only'), `Should be protected: ${preparedSvg}`)
+        
+        const final = finalizeAfterOptimization(preparedSvg, wasJsx)
+        assert.ok(final.includes('client:only'), `Final result missing client:only: ${final}`)
+    })
 })
+
 
 describe('Vue Support', () => {
     // Vue uses :attr="value" or v-bind:attr="value"
@@ -44,20 +59,25 @@ describe('Vue Support', () => {
         const input = '<svg :width="size" :height="size"><path /></svg>'
         const { preparedSvg, wasJsx } = prepareForOptimization(input)
         
-        // Currently it ignores Vue syntax
-        assert.strictEqual(wasJsx, false)
-        assert.strictEqual(preparedSvg, input)
+        // Now it detects and protects Vue syntax
+        assert.strictEqual(wasJsx, true)
+        assert.ok(preparedSvg.includes('data-better-svg-temp-__COLON__width="size"'))
+        
+        const final = finalizeAfterOptimization(preparedSvg, wasJsx)
+        assert.strictEqual(final, input)
     })
 
     it('should preserve Vue v-bind attributes', () => {
         const input = '<svg v-bind:width="size"></svg>'
         const { preparedSvg, wasJsx } = prepareForOptimization(input)
-        assert.strictEqual(wasJsx, false)
+        assert.strictEqual(wasJsx, true)
+        assert.ok(preparedSvg.includes('data-better-svg-temp-v-bind__COLON__width="size"'))
     })
     
     it('should preserve Vue @event handlers', () => {
         const input = '<svg @click="handleClick"></svg>'
         const { preparedSvg, wasJsx } = prepareForOptimization(input)
-        assert.strictEqual(wasJsx, false)
+        assert.strictEqual(wasJsx, true)
+        assert.ok(preparedSvg.includes('data-better-svg-temp-__AT__click="handleClick"'))
     })
 })
