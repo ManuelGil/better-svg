@@ -7,13 +7,13 @@
 </div>
 
 <div align="center">
-   A Visual Studio Code extension for editing SVG files with live preview and integrated optimization.
+   The ultimate Visual Studio Code extension for SVG development. Real-time preview, integrated SVGO optimization, and seamless framework support.
 </div>
 
 </p>
 
 <div align="center">
-    <a href="https://marketplace.visualstudio.com/items?itemName=midudev.better-svg&ssr=false#overview" target="_blank" rel="noopener">
+    <a href="https://marketplace.visualstudio.com/items?itemName=midudev.better-svg" target="_blank" rel="noopener">
         VS Marketplace
     </a>
     <span>&nbsp;❖&nbsp;</span>
@@ -21,20 +21,16 @@
         Features
     </a>
     <span>&nbsp;❖&nbsp;</span>
-    <a href="#usage">
-        Usage
+    <a href="#supported-files">
+        Supported Files
+    </a>
+    <span>&nbsp;❖&nbsp;</span>
+    <a href="#optimization">
+        Optimization
     </a>
     <span>&nbsp;❖&nbsp;</span>
     <a href="#configuration">
         Configuration
-    </a>
-    <span>&nbsp;❖&nbsp;</span>
-    <a href="#contributing">
-        Contributing
-    </a>
-    <span>&nbsp;❖&nbsp;</span>
-    <a href="#license">
-        License
     </a>
 </div>
 
@@ -46,125 +42,59 @@
 ![SVG Badge](https://img.shields.io/badge/SVG-FFB13B?logo=svg&logoColor=fff&style=flat)
 ![SVGO Badge](https://img.shields.io/badge/SVGO-3E7FC1?logo=svgo&logoColor=fff&style=flat)
 ![GitHub stars](https://img.shields.io/github/stars/midudev/better-svg)
-![GitHub forks](https://img.shields.io/github/forks/midudev/better-svg)
-![GitHub issues](https://img.shields.io/github/issues/midudev/better-svg)
-![GitHub PRs](https://img.shields.io/github/issues-pr/midudev/better-svg)
 
 </div>
 
 ## Features
 
-- ✨ **Editor with side preview**: Edit your SVG in a textarea with real-time preview in the Explorer panel
-- 🎨 **currentColor control**: Change the `currentColor` value to preview different color schemes
-- 🌓 **Dark background**: Toggle dark background to better visualize SVGs with light colors
-- 🔍 **Zoom and pan**: Zoom in/out with click or Alt+click, scroll with Alt, and drag to pan
-- ⚡ **SVGO optimization**: Integrated toolbar button to optimize your SVG
-- 📐 **Grid background**: Preview includes a grid background to better see transparent SVGs
+- ✨ **Interactive Preview Editor**: Open any `.svg` file to get a powerful editor with a live preview side-by-side.
+- 🖼️ **Explorer Preview**: A dedicated "SVG Preview" panel in the Explorer view that tracks your active SVG file automatically.
+- 🎨 **Smart Hover Preview**: Hover over any SVG code in your source files to see an instant preview and optimization options.
+- 📑 **Gutter Icons**: Small SVG icons appear next to the line numbers where SVGs are defined in your code.
+- 🔍 **Advanced Viewport Controls**: Zoom with click/Alt+click, scroll with Alt, and drag to pan through your graphics.
+- 🌓 **Contextual Visualization**: Toggle dark backgrounds and grid overlays to see how your SVGs look in different environments.
+- 🌈 **currentColor Control**: Dynamically change the `currentColor` value to test your icons with different theme colors.
 
-## Usage
+## Supported Files
 
-1. Open any `.svg` file
-2. The extension will automatically open the custom editor with:
-   - Code editor taking up the full panel
-   - Preview panel
-3. Click the ⚡ icon in the toolbar to optimize the SVG
+Better SVG isn't just for `.svg` files. It understands SVG syntax inside a wide range of modern web frameworks:
 
-### Preview controls
+- **Static**: `.svg`, `.xml`
+- **React**: `.jsx`, `.tsx`
+- **Vue**: `.vue`
+- **Astro**: `.astro`
+- **Svelte**: `.svelte`
 
-- **Drag panel**: Click on the "Preview" header and drag
-- **Resize**: Use the resize handle in the bottom right corner
-- **Zoom in**: Normal click on the preview
-- **Zoom out**: Hold Alt + Click
-- **Zoom with scroll**: Hold Alt + use mouse wheel
-- **Pan**: When zoomed, drag the SVG with left button
-- **Change currentColor**: Click the palette icon + color circle
-- **Dark background**: Click the moon icon
+The extension automatically detects SVG tags within these files, providing gutter icons, hover previews, and framework-aware optimization.
+
+## Optimization
+
+Integrated **SVGO** power allows you to shrink your SVGs without leaving the editor.
+
+### Ways to optimize:
+1. **Toolbar Button**: Use the ⚡ icon in the SVG editor title bar.
+2. **Context Menu**: Right-click an SVG file in the Explorer and select **Optimize SVG**.
+3. **From Hover**: Hover over an inline SVG in your code and click the **⚡ Optimize SVG** action link.
+
+### Smart Framework Support
+When optimizing inline SVGs (like in React or Vue), Better SVG:
+- Preserves framework-specific attributes (e.g., `v-if`, `on:click`, `className`).
+- Handles JSX interpolation and spread operators (`{...props}`).
+- Maintains the coding style of the host file.
 
 ## Configuration
 
-The extension includes the following configurable options (accessible from Settings → Extensions → Better SVG):
+Customize your workflow through **Settings → Extensions → Better SVG**:
 
-### `betterSvg.autoReveal`
-
-- **Type**: `boolean`
-- **Default value**: `true`
-- **Description**: Automatically expand the "SVG Preview" panel in Explorer when opening an SVG file. If disabled, you'll need to manually open the panel each time.
-
-### `betterSvg.autoCollapse`
-
-- **Type**: `boolean`
-- **Default value**: `true`
-- **Description**: Automatically collapse the "SVG Preview" panel when closing all SVG files or switching to a non-SVG file. If disabled, the panel will remain open even when no SVG files are active.
-
-### `betterSvg.defaultColor`
-
-- **Type**: `string`
-- **Default value**: `"#ffffff"`
-- **Description**: Default color for `currentColor` in the SVG preview. Must be a valid hexadecimal color (e.g., `#ffffff`, `#000`, `#ff5733`). This color will be applied when opening an SVG file and can be manually changed using the color picker in the preview panel.
-
-### Example configuration in `settings.json`
-
-```json
-{
-  "betterSvg.autoReveal": true,
-  "betterSvg.autoCollapse": true,
-  "betterSvg.defaultColor": "#ffffff"
-}
-```
-
-## Contributing
-
-### Project structure
-
-```text
-better-svg/
-├── src/
-│   ├── extension.ts           # Extension entry point
-│   ├── svgEditorProvider.ts   # Custom editor provider
-│   └── webview/               # Webview files
-│       ├── index.html         # HTML template
-│       ├── styles.css         # CSS styles
-│       └── main.js            # Webview JavaScript logic
-└── package.json
-```
-
-### Installation
-
-```bash
-cd better-svg
-npm install
-npm run compile
-```
-
-Then press `F5` in VS Code to open an extension window for testing.
-
-### Commands
-
-```bash
-# Single compilation
-npm run compile
-
-# Watch mode (automatically recompiles on save)
-npm run watch
-
-# Optimized production build (minified)
-npm run package
-```
-
-The extension uses **esbuild** for bundling, which means:
-
-- ✅ **Faster**: Bundle loads instantly
-- ✅ **Smaller**: ~500KB vs multiple files
-- ✅ **Web compatible**: Works on github.dev and vscode.dev
-- ✅ **Type checking**: TypeScript verifies types without emitting files
-
-### Create `.vsix`
-
-```bash
-npm install -g @vscode/vsce
-vsce package
-```
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `betterSvg.autoReveal` | `boolean` | `true` | Automatically reveal and expand the SVG Preview panel in Explorer when opening SVG files. |
+| `betterSvg.autoCollapse` | `boolean` | `true` | Automatically collapse the SVG Preview panel when no SVG files are active. |
+| `betterSvg.enableHover` | `boolean` | `true` | Enable the hover preview when mouse is over SVG code. |
+| `betterSvg.showGutterPreview` | `boolean` | `true` | Show small preview icons next to line numbers in the gutter. |
+| `betterSvg.defaultColor` | `string` | `"#ffffff"` | The hex color used to replace `currentColor` in previews. |
+| `betterSvg.removeClasses` | `boolean` | `true` | Whether to remove `class` attributes when running the optimization. |
 
 ## License
 
-[Apache-2.0 license](https://github.com/midudev/better-svg?tab=Apache-2.0-1-ov-file#readme)
+[Apache-2.0 license](https://github.com/midudev/better-svg/blob/main/LICENSE)
