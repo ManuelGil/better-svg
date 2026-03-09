@@ -206,12 +206,12 @@ export class SvgHoverProvider implements vscode.HoverProvider {
     const viewBoxMatch = svgOpenTag.match(/viewBox\s*=\s*["']([^"']+)["']/)
 
     if (!hasWidth && !hasHeight) {
-      if (viewBoxMatch) {
+      if (viewBoxMatch && viewBoxMatch[1]) {
         // Use viewBox dimensions scaled to minSize
         const viewBoxParts = viewBoxMatch[1].split(/\s+/)
         if (viewBoxParts.length >= 4) {
-          const vbWidth = parseFloat(viewBoxParts[2])
-          const vbHeight = parseFloat(viewBoxParts[3])
+          const vbWidth = parseFloat(viewBoxParts[2] ?? '0')
+          const vbHeight = parseFloat(viewBoxParts[3] ?? '0')
           const scale = minSize / Math.max(vbWidth, vbHeight)
           const newWidth = Math.round(vbWidth * scale)
           const newHeight = Math.round(vbHeight * scale)
@@ -228,9 +228,9 @@ export class SvgHoverProvider implements vscode.HoverProvider {
       const widthMatch = svgOpenTag.match(/\bwidth\s*=\s*["'](\d+(?:\.\d+)?)(?:px)?["']/)
       const heightMatch = svgOpenTag.match(/\bheight\s*=\s*["'](\d+(?:\.\d+)?)(?:px)?["']/)
 
-      if (widthMatch && heightMatch) {
-        const width = parseFloat(widthMatch[1])
-        const height = parseFloat(heightMatch[1])
+      if (widthMatch && widthMatch[1] && heightMatch && heightMatch[1]) {
+        const width = parseFloat(widthMatch[1] ?? '0')
+        const height = parseFloat(heightMatch[1] ?? '0')
 
         if (width < minSize && height < minSize) {
           const scale = minSize / Math.max(width, height)
@@ -385,11 +385,11 @@ export class SvgGutterPreview {
     const viewBoxMatch = svgOpenTag.match(/viewBox\s*=\s*["']([^"']+)["']/)
 
     if (!hasWidth && !hasHeight) {
-      if (viewBoxMatch) {
+      if (viewBoxMatch && viewBoxMatch[1]) {
         const viewBoxParts = viewBoxMatch[1].split(/\s+/)
         if (viewBoxParts.length >= 4) {
-          const vbWidth = parseFloat(viewBoxParts[2])
-          const vbHeight = parseFloat(viewBoxParts[3])
+          const vbWidth = parseFloat(viewBoxParts[2] ?? '0')
+          const vbHeight = parseFloat(viewBoxParts[3] ?? '0')
           const scale = minSize / Math.max(vbWidth, vbHeight)
           const newWidth = Math.round(vbWidth * scale)
           const newHeight = Math.round(vbHeight * scale)
