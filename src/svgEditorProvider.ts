@@ -90,7 +90,6 @@ export class SvgPreviewProvider implements vscode.WebviewViewProvider {
     try {
       const svgContent = document ? document.getText() : '<svg></svg>'
 
-
       // Get default color from configuration
       const config = vscode.workspace.getConfiguration('betterSvg')
       const defaultColor = config.get<string>('defaultColor', '#ffffff')
@@ -159,6 +158,4 @@ export class SvgPreviewProvider implements vscode.WebviewViewProvider {
     )
     vscode.workspace.applyEdit(edit)
   }
-
-
 }

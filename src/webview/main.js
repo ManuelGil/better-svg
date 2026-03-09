@@ -142,7 +142,7 @@ const vscode = acquireVsCodeApi()
 
   // Zoom and pan functionality
   preview.addEventListener('click', (e) => {
-    if(wasPanning) return;
+    if (wasPanning) return
 
     if (e.target === preview || e.target === svgWrapper || e.target.closest('svg')) {
       // Check both the stored state and the event's altKey
@@ -181,7 +181,7 @@ const vscode = acquireVsCodeApi()
 
   window.addEventListener('mousemove', (e) => {
     if (isPanning) {
-      wasPanning = true;
+      wasPanning = true
       translateX = e.clientX - panStartX
       translateY = e.clientY - panStartY
       updateTransform()

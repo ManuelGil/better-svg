@@ -158,10 +158,6 @@ export function isJsxSvg (svgContent: string): boolean {
   return false
 }
 
-
-
-
-
 /**
  * Converts JSX SVG syntax to valid SVG XML
  * - Converts expression values {2} to "2"
@@ -254,16 +250,16 @@ function replaceTextInterpolations (content: string): string {
 
     // If preceded by = or not inside a tag-content area, skip
     if ((startIdx > 0 && content[startIdx - 1] === '=') || !isInsideTag) {
-        result += content.slice(currentIndex, startIdx + 1)
-        currentIndex = startIdx + 1
-        continue
+      result += content.slice(currentIndex, startIdx + 1)
+      currentIndex = startIdx + 1
+      continue
     }
 
     // Skip if it is a JSX comment start
     if (content.startsWith('/*', startIdx + 1)) {
-        result += content.slice(currentIndex, startIdx + 1)
-        currentIndex = startIdx + 1
-        continue
+      result += content.slice(currentIndex, startIdx + 1)
+      currentIndex = startIdx + 1
+      continue
     }
 
     // Append everything before "{"
@@ -282,8 +278,7 @@ function replaceTextInterpolations (content: string): string {
       if (inString) {
         if (char === stringChar && prevChar !== '\\') inString = false
       } else {
-        if (char === '"' || char === '\'' || char === '`') { inString = true; stringChar = char }
-        else if (char === '{') balance++
+        if (char === '"' || char === '\'' || char === '`') { inString = true; stringChar = char } else if (char === '{') balance++
         else if (char === '}') balance--
       }
       j++
@@ -301,9 +296,6 @@ function replaceTextInterpolations (content: string): string {
   }
   return result
 }
-
-
-
 
 function replaceJsxSpreads (content: string): string {
   let result = ''
@@ -367,7 +359,6 @@ function replaceJsxSpreads (content: string): string {
   return result
 }
 
-
 function removeJsxComments (content: string): string {
   // Remove block comments {/* ... */}
   content = content.replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
@@ -391,9 +382,9 @@ function protectEncodedAttributes (content: string): string {
 
     // Decide if we should protect this attribute
     const isEncoded = value?.includes(BASE64_PREFIX)
-    const isDirective = /^(client:|v-|on:|bind:|class:|use:|let:|animate:|transition:|[:@])/.test(attr) && 
+    const isDirective = /^(client:|v-|on:|bind:|class:|use:|let:|animate:|transition:|[:@])/.test(attr) &&
                         !/^(xmlns|xlink|xml|sketch):/.test(attr)
-    
+
     if (!isEncoded && !isDirective) {
       return match
     }
@@ -403,7 +394,7 @@ function protectEncodedAttributes (content: string): string {
       .replace(/:/g, '__COLON__')
       .replace(/@/g, '__AT__')
       .replace(/\./g, '__DOT__')
-    
+
     if (value !== undefined) {
       return `data-better-svg-temp-${safeAttr}="${value}"`
     } else {
@@ -413,7 +404,6 @@ function protectEncodedAttributes (content: string): string {
   })
 }
 
-
 function restoreEncodedAttributes (content: string): string {
   // Restore protected attributes
   return content.replace(/data-better-svg-temp-([a-zA-Z0-9-_]+)="([^"]*)"/g, (match, safeAttr, value) => {
@@ -421,7 +411,7 @@ function restoreEncodedAttributes (content: string): string {
       .replace(/__COLON__/g, ':')
       .replace(/__AT__/g, '@')
       .replace(/__DOT__/g, '.')
-    
+
     if (value === '__BOOLEAN__') {
       return attr
     }
@@ -459,7 +449,7 @@ export function convertJsxToSvg (svgContent: string, options: OptimizationOption
       svgContent = svgContent.replace(regex, `${svg}=`)
     }
   }
-  
+
   // Protect all attributes with encoded values from SVGO
   // This handles style, event handlers, and anything else that is dynamically encoded
   svgContent = protectEncodedAttributes(svgContent)
@@ -492,7 +482,7 @@ export function convertSvgToJsx (svgContent: string, options: OptimizationOption
   // Restore spread attributes
   svgContent = svgContent.replace(/\bdata-spread-\d+="([^"]*)"/g, (_match, value) => {
     const decoded = decodeJsx(value)
-    // If it wasn't encoded (legacy/fallback), try simple unescape or keep as is? 
+    // If it wasn't encoded (legacy/fallback), try simple unescape or keep as is?
     // Just handling our new logic:
     if (decoded !== null) {
       return `{...${decoded}}`
@@ -521,14 +511,13 @@ export function convertSvgToJsx (svgContent: string, options: OptimizationOption
   svgContent = svgContent.replace(/>(__JSX_BASE64__[^<]*?__)</g, (match, value) => {
     const decoded = decodeJsx(value)
     if (decoded !== null) {
-        return `>{${decoded}}<`
+      return `>{${decoded}}<`
     }
     return match
   })
 
   return svgContent
 }
-
 
 /**
  * Prepares JSX SVG content for SVGO optimization
@@ -563,4 +552,3 @@ export function finalizeAfterOptimization (optimizedSvg: string, wasJsx: boolean
 
   return optimizedSvg
 }
-

@@ -78,7 +78,7 @@ export class SvgHoverProvider implements vscode.HoverProvider {
         // Check ONLY inside the opening <svg ... > tag
         const svgOpenTagMatch = svgContent.match(/<svg[^>]*>/i)
         const hasXmlnsInRoot = svgOpenTagMatch && /xmlns\s*=\s*["']/.test(svgOpenTagMatch[0])
-        
+
         if (!hasXmlnsInRoot) {
           svgContent = svgContent.replace(/<svg/, '<svg xmlns="http://www.w3.org/2000/svg"')
         }
@@ -95,8 +95,8 @@ export class SvgHoverProvider implements vscode.HoverProvider {
         // Ensure minimum size for visibility in hover
         svgContent = this.ensureMinimumSize(svgContent, 128)
 
-        // Validate that the SVG is likely to be renderable. 
-        // If it still contains JSX-like braces (outside of <style> tags), 
+        // Validate that the SVG is likely to be renderable.
+        // If it still contains JSX-like braces (outside of <style> tags),
         // it's likely to show a broken image, so we'd rather show nothing.
         const validationContent = svgContent.replace(/<style[\s\S]*?<\/style>/gi, '')
         if (validationContent.includes('{') || validationContent.includes('}')) {
@@ -294,7 +294,7 @@ export class SvgGutterPreview {
       // Check ONLY inside the opening <svg ... > tag
       const svgOpenTagMatch = svgContent.match(/<svg[^>]*>/i)
       const hasXmlnsInRoot = svgOpenTagMatch && /xmlns\s*=\s*["']/.test(svgOpenTagMatch[0])
-      
+
       if (!hasXmlnsInRoot) {
         svgContent = svgContent.replace(/<svg/, '<svg xmlns="http://www.w3.org/2000/svg"')
       }

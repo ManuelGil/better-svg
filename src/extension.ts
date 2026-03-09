@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
+import { optimize } from 'svgo/browser'
 import * as vscode from 'vscode'
+import { SUPPORTED_LANGUAGES } from './consts'
 import { SvgPreviewProvider } from './svgEditorProvider'
 import { SvgGutterPreview, SvgHoverProvider } from './svgGutterPreview'
-import { optimize } from 'svgo/browser'
-import { prepareForOptimization, finalizeAfterOptimization } from './svgTransform'
-import { SUPPORTED_LANGUAGES } from './consts'
+import { finalizeAfterOptimization, prepareForOptimization } from './svgTransform'
 
 let previewProvider: SvgPreviewProvider
 let gutterPreview: SvgGutterPreview
@@ -52,7 +52,6 @@ export function activate (context: vscode.ExtensionContext) {
 
     // Register SVG Hover Provider for all supported languages
     const svgHoverProvider = new SvgHoverProvider()
-    
 
     context.subscriptions.push(
       vscode.languages.registerHoverProvider(
