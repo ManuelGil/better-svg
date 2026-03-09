@@ -57,6 +57,14 @@
     "optimize"
   ],
   "main": "./dist/extension.js",
+  "files": [
+    "static/icon.png",
+    "dist/webview",
+    "dist/extension.js",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
   "contributes": {
     "views": {
       "explorer": [
@@ -72,8 +80,12 @@
     "languages": [
       {
         "id": "liquid",
-        "aliases": ["Liquid"],
-        "extensions": [".liquid"]
+        "aliases": [
+          "Liquid"
+        ],
+        "extensions": [
+          ".liquid"
+        ]
       }
     ],
     "commands": [
