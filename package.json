@@ -72,18 +72,35 @@
     "languages": [
       {
         "id": "liquid",
-        "aliases": ["Liquid"],
-        "extensions": [".liquid"]
+        "aliases": [
+          "Liquid"
+        ],
+        "extensions": [
+          ".liquid"
+        ]
       }
     ],
     "commands": [
       {
         "command": "betterSvg.optimize",
         "title": "Optimize SVG",
+        "category": "Better SVG",
+        "icon": "$(zap)"
+      },
+      {
+        "command": "betterSvg.optimizeFromHover",
+        "title": "Optimize SVG from Hover",
+        "category": "Better SVG",
         "icon": "$(zap)"
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "betterSvg.optimize",
+          "when": "editorTextFocus && resourceExtname == .svg"
+        }
+      ],
       "editor/title": [
         {
           "command": "betterSvg.optimize",
