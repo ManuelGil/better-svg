@@ -30,13 +30,19 @@
     "vscode": "^1.85.0"
   },
   "activationEvents": [
-    "onLanguage:svg",
-    "onLanguage:xml",
     "onLanguage:astro",
+    "onLanguage:ejs",
+    "onLanguage:erb",
+    "onLanguage:html",
+    "onLanguage:javascript",
     "onLanguage:javascriptreact",
-    "onLanguage:typescriptreact",
+    "onLanguage:php",
     "onLanguage:svelte",
+    "onLanguage:svg",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
     "onLanguage:vue",
+    "onLanguage:xml",
     "onLanguage:liquid"
   ],
   "categories": [
@@ -72,8 +78,12 @@
     "languages": [
       {
         "id": "liquid",
-        "aliases": ["Liquid"],
-        "extensions": [".liquid"]
+        "aliases": [
+          "Liquid"
+        ],
+        "extensions": [
+          ".liquid"
+        ]
       }
     ],
     "commands": [
