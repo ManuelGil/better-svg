@@ -52,11 +52,13 @@ export function activate (context: vscode.ExtensionContext) {
 
     // Register SVG Hover Provider for all supported languages
     const svgHoverProvider = new SvgHoverProvider()
-    
 
     context.subscriptions.push(
       vscode.languages.registerHoverProvider(
-        SUPPORTED_LANGUAGES.map(lang => ({ language: lang })),
+        SUPPORTED_LANGUAGES.map((language) => ({
+          language,
+          scheme: 'file',
+        })),
         svgHoverProvider
       )
     )
