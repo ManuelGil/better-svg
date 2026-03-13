@@ -38,7 +38,7 @@ export function activate (context: vscode.ExtensionContext) {
     previewProvider = new SvgPreviewProvider(context)
     context.subscriptions.push(
       vscode.window.registerWebviewViewProvider(
-        'betterSvg.preview',
+        SvgPreviewProvider.viewType,
         previewProvider,
         { webviewOptions: { retainContextWhenHidden: true } }
       )
@@ -52,7 +52,6 @@ export function activate (context: vscode.ExtensionContext) {
 
     // Register SVG Hover Provider for all supported languages
     const svgHoverProvider = new SvgHoverProvider()
-    
 
     context.subscriptions.push(
       vscode.languages.registerHoverProvider(
