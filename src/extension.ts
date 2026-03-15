@@ -20,6 +20,7 @@ import { SvgGutterPreview, SvgHoverProvider } from './svgGutterPreview'
 import { optimize } from 'svgo/browser'
 import { prepareForOptimization, finalizeAfterOptimization } from './svgTransform'
 import { SUPPORTED_LANGUAGES } from './consts'
+import { getSvgoPlugins, optimizeSvgDocument } from './svgOptimizationService'
 
 let previewProvider: SvgPreviewProvider
 let gutterPreview: SvgGutterPreview
@@ -52,7 +53,6 @@ export function activate (context: vscode.ExtensionContext) {
 
     // Register SVG Hover Provider for all supported languages
     const svgHoverProvider = new SvgHoverProvider()
-    
 
     context.subscriptions.push(
       vscode.languages.registerHoverProvider(
@@ -267,72 +267,6 @@ export function activate (context: vscode.ExtensionContext) {
   }
 }
 
-function getSvgoPlugins (removeClasses: boolean): any[] {
-  const plugins: any[] = [
-    {
-      name: 'preset-default',
-      params: {
-        overrides: {
-          // Preserve important attributes by default
-          cleanupIds: false,
-          // Disable removing unknown attributes (like onClick, data-*) when preserving classes (inline mode)
-          removeUnknownsAndDefaults: removeClasses
-        }
-      }
-    },
-    'removeDoctype',
-    'removeComments',
-    {
-      name: 'removeAttrs',
-      params: {
-        // Remove attributes that are not useful in most cases
-        attrs: [
-          'xmlns:xlink',
-          'xml:space',
-          ...(removeClasses ? ['class'] : [])
-        ]
-      }
-    }
-  ]
-
-  return plugins
-}
-
-export async function optimizeSvgDocument (document: vscode.TextDocument) {
-  const svgContent = document.getText()
-
-  try {
-    const plugins = getSvgoPlugins(true)
-
-    const result = optimize(svgContent, {
-      multipass: true,
-      plugins
-    })
-
-    const edit = new vscode.WorkspaceEdit()
-    const fullRange = new vscode.Range(
-      document.positionAt(0),
-      document.positionAt(svgContent.length)
-    )
-    edit.replace(document.uri, fullRange, result.data)
-
-    await vscode.workspace.applyEdit(edit)
-
-    // Calculate savings
-    const originalSize = Buffer.byteLength(svgContent, 'utf8')
-    const optimizedSize = Buffer.byteLength(result.data, 'utf8')
-    const savingPercent = ((originalSize - optimizedSize) / originalSize * 100).toFixed(2)
-    const originalSizeKB = (originalSize / 1024).toFixed(2)
-    const optimizedSizeKB = (optimizedSize / 1024).toFixed(2)
-
-    vscode.window.showInformationMessage(
-      `SVG optimized. Reduced from ${originalSizeKB} KB to ${optimizedSizeKB} KB (${savingPercent}% saved)`
-    )
-  } catch (error) {
-    vscode.window.showErrorMessage(`Failed to optimize SVG: ${error}`)
-  }
-}
-
 export async function optimizeSvgInline (document: vscode.TextDocument, svgContent: string, range: vscode.Range) {
   try {
     const plugins = getSvgoPlugins(false)
@@ -378,4 +312,4 @@ export async function optimizeSvgInline (document: vscode.TextDocument, svgConte
   }
 }
 
-export function deactivate () {}
+export function deactivate () { }
