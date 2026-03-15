@@ -16,6 +16,12 @@
 
 import * as vscode from 'vscode'
 import { convertJsxToSvg } from './svgTransform'
+import {
+  formatBytes,
+  propagateStrokeAndFill,
+  ensureMinimumSizeHover,
+  ensureMinimumSizeGutter
+} from './utils'
 
 interface SvgCacheEntry {
   dataUri: string
@@ -78,25 +84,25 @@ export class SvgHoverProvider implements vscode.HoverProvider {
         // Check ONLY inside the opening <svg ... > tag
         const svgOpenTagMatch = svgContent.match(/<svg[^>]*>/i)
         const hasXmlnsInRoot = svgOpenTagMatch && /xmlns\s*=\s*["']/.test(svgOpenTagMatch[0])
-        
+
         if (!hasXmlnsInRoot) {
           svgContent = svgContent.replace(/<svg/, '<svg xmlns="http://www.w3.org/2000/svg"')
         }
 
         // Replace currentColor based on theme
         const isDarkTheme = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark ||
-                            vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.HighContrast
+          vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.HighContrast
         const contrastColor = isDarkTheme ? '#ffffff' : '#000000'
         svgContent = svgContent.replace(/currentColor/g, contrastColor)
 
         // Extract stroke/fill from parent SVG and propagate to children
-        svgContent = this.propagateStrokeAndFill(svgContent)
+        svgContent = propagateStrokeAndFill(svgContent)
 
         // Ensure minimum size for visibility in hover
-        svgContent = this.ensureMinimumSize(svgContent, 128)
+        svgContent = ensureMinimumSizeHover(svgContent, 128)
 
-        // Validate that the SVG is likely to be renderable. 
-        // If it still contains JSX-like braces (outside of <style> tags), 
+        // Validate that the SVG is likely to be renderable.
+        // If it still contains JSX-like braces (outside of <style> tags),
         // it's likely to show a broken image, so we'd rather show nothing.
         const validationContent = svgContent.replace(/<style[\s\S]*?<\/style>/gi, '')
         if (validationContent.includes('{') || validationContent.includes('}')) {
@@ -128,7 +134,7 @@ export class SvgHoverProvider implements vscode.HoverProvider {
     markdown.isTrusted = true
     markdown.supportHtml = true
     markdown.appendMarkdown(`![SVG Preview](${dataUri})\n\n`)
-    markdown.appendMarkdown(`**Size:** ${this.formatBytes(sizeBytes)}\n\n`)
+    markdown.appendMarkdown(`**Size:** ${formatBytes(sizeBytes)}\n\n`)
     const encodedArgs = encodeURIComponent(JSON.stringify(commandArgs))
     markdown.appendMarkdown(`[⚡ Optimizar SVG](command:betterSvg.optimizeFromHover?${encodedArgs})`)
 
@@ -144,107 +150,13 @@ export class SvgHoverProvider implements vscode.HoverProvider {
     return this.createHover(cached.dataUri, cached.sizeBytes, range, commandArgs)
   }
 
-  private formatBytes (bytes: number): string {
-    if (bytes < 1024) {
-      return `${bytes} bytes`
-    }
-    const kb = bytes / 1024
-    return `${kb.toFixed(2)} KB`
-  }
-
   private buildHoverCommandArgs (
     document: vscode.TextDocument,
     range: vscode.Range
   ): HoverCommandArgs {
     const start = document.offsetAt(range.start)
     const end = document.offsetAt(range.end)
-    return {
-      uri: document.uri.toString(),
-      start,
-      length: end - start
-    }
-  }
-
-  private propagateStrokeAndFill (svgContent: string): string {
-    // Extract stroke and fill from the root <svg> element
-    const svgOpenTagMatch = svgContent.match(/<svg[^>]*>/i)
-    if (!svgOpenTagMatch) return svgContent
-
-    const svgOpenTag = svgOpenTagMatch[0]
-
-    // Extract stroke attribute from svg tag
-    const strokeMatch = svgOpenTag.match(/\bstroke\s*=\s*["']([^"']+)["']/)
-    const stroke = strokeMatch ? strokeMatch[1] : null
-
-    // If there's a stroke on the parent, propagate it to child elements that don't have one
-    if (stroke) {
-      const shapeElements = ['path', 'line', 'polyline', 'polygon', 'circle', 'ellipse', 'rect']
-      const shapeRegex = new RegExp(`<(${shapeElements.join('|')})([^>]*?)(\\/?>)`, 'gi')
-
-      svgContent = svgContent.replace(shapeRegex, (match, tagName, attrs, ending) => {
-        // Check if stroke is already present in attrs
-        if (attrs && /\bstroke\s*=/.test(attrs)) {
-          return match
-        }
-        return `<${tagName}${attrs || ''} stroke="${stroke}"${ending}`
-      })
-    }
-
-    return svgContent
-  }
-
-  private ensureMinimumSize (svgContent: string, minSize: number): string {
-    // Check if SVG has width/height attributes (only in svg tag, not child elements)
-    const svgOpenTagMatch = svgContent.match(/<svg[^>]*>/i)
-    if (!svgOpenTagMatch) return svgContent
-
-    const svgOpenTag = svgOpenTagMatch[0]
-    const hasWidth = /\bwidth\s*=\s*["'][^"']+["']/.test(svgOpenTag)
-    const hasHeight = /\bheight\s*=\s*["'][^"']+["']/.test(svgOpenTag)
-
-    // Try to get dimensions from viewBox if no explicit width/height
-    const viewBoxMatch = svgOpenTag.match(/viewBox\s*=\s*["']([^"']+)["']/)
-
-    if (!hasWidth && !hasHeight) {
-      if (viewBoxMatch) {
-        // Use viewBox dimensions scaled to minSize
-        const viewBoxParts = viewBoxMatch[1].split(/\s+/)
-        if (viewBoxParts.length >= 4) {
-          const vbWidth = parseFloat(viewBoxParts[2])
-          const vbHeight = parseFloat(viewBoxParts[3])
-          const scale = minSize / Math.max(vbWidth, vbHeight)
-          const newWidth = Math.round(vbWidth * scale)
-          const newHeight = Math.round(vbHeight * scale)
-          svgContent = svgContent.replace('<svg', `<svg width="${newWidth}" height="${newHeight}"`)
-        } else {
-          svgContent = svgContent.replace('<svg', `<svg width="${minSize}" height="${minSize}"`)
-        }
-      } else {
-        // No viewBox either, add default size
-        svgContent = svgContent.replace('<svg', `<svg width="${minSize}" height="${minSize}"`)
-      }
-    } else {
-      // Scale up small SVGs
-      const widthMatch = svgOpenTag.match(/\bwidth\s*=\s*["'](\d+(?:\.\d+)?)(?:px)?["']/)
-      const heightMatch = svgOpenTag.match(/\bheight\s*=\s*["'](\d+(?:\.\d+)?)(?:px)?["']/)
-
-      if (widthMatch && heightMatch) {
-        const width = parseFloat(widthMatch[1])
-        const height = parseFloat(heightMatch[1])
-
-        if (width < minSize && height < minSize) {
-          const scale = minSize / Math.max(width, height)
-          const newWidth = Math.round(width * scale)
-          const newHeight = Math.round(height * scale)
-
-          svgContent = svgContent
-            .replace(/\bwidth\s*=\s*["']\d+(?:\.\d+)?(?:px)?["']/, `width="${newWidth}"`)
-            .replace(/\bheight\s*=\s*["']\d+(?:\.\d+)?(?:px)?["']/, `height="${newHeight}"`)
-        }
-      }
-    }
-
-    return svgContent
+    return { uri: document.uri.toString(), start, length: end - start }
   }
 
   public clearCache (): void {
@@ -294,24 +206,24 @@ export class SvgGutterPreview {
       // Check ONLY inside the opening <svg ... > tag
       const svgOpenTagMatch = svgContent.match(/<svg[^>]*>/i)
       const hasXmlnsInRoot = svgOpenTagMatch && /xmlns\s*=\s*["']/.test(svgOpenTagMatch[0])
-      
+
       if (!hasXmlnsInRoot) {
         svgContent = svgContent.replace(/<svg/, '<svg xmlns="http://www.w3.org/2000/svg"')
       }
 
       // Replace currentColor based on theme
       const isDarkTheme = vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark ||
-                          vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.HighContrast
+        vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.HighContrast
 
       const contrastColor = isDarkTheme ? '#ffffff' : '#000000'
 
       svgContent = svgContent.replace(/currentColor/g, contrastColor)
 
       // Propagate stroke/fill from parent to children (after currentColor is resolved)
-      svgContent = this.propagateStrokeAndFill(svgContent)
+      svgContent = propagateStrokeAndFill(svgContent)
 
       // Ensure minimum size for gutter icon
-      svgContent = this.ensureMinimumSize(svgContent, 16)
+      svgContent = ensureMinimumSizeGutter(svgContent, 16)
 
       // Validate that the SVG is likely to be renderable.
       const validationContent = svgContent.replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -342,67 +254,6 @@ export class SvgGutterPreview {
       types.forEach(t => t.dispose())
       this.decorationTypes.delete(uri)
     }
-  }
-
-  private propagateStrokeAndFill (svgContent: string): string {
-    // Extract stroke and fill from the root <svg> element
-    const svgOpenTagMatch = svgContent.match(/<svg[^>]*>/i)
-    if (!svgOpenTagMatch) return svgContent
-
-    const svgOpenTag = svgOpenTagMatch[0]
-
-    // Extract stroke attribute from svg tag
-    const strokeMatch = svgOpenTag.match(/\bstroke\s*=\s*["']([^"']+)["']/)
-    const stroke = strokeMatch ? strokeMatch[1] : null
-
-    // If there's a stroke on the parent, propagate it to child elements that don't have one
-    if (stroke) {
-      const shapeElements = ['path', 'line', 'polyline', 'polygon', 'circle', 'ellipse', 'rect']
-      const shapeRegex = new RegExp(`<(${shapeElements.join('|')})([^>]*?)(\\/?>)`, 'gi')
-
-      svgContent = svgContent.replace(shapeRegex, (match, tagName, attrs, ending) => {
-        // Check if stroke is already present in attrs
-        if (attrs && /\bstroke\s*=/.test(attrs)) {
-          return match
-        }
-        return `<${tagName}${attrs || ''} stroke="${stroke}"${ending}`
-      })
-    }
-
-    return svgContent
-  }
-
-  private ensureMinimumSize (svgContent: string, minSize: number): string {
-    // Check if SVG has width/height attributes (only in svg tag, not child elements)
-    const svgOpenTagMatch = svgContent.match(/<svg[^>]*>/i)
-    if (!svgOpenTagMatch) return svgContent
-
-    const svgOpenTag = svgOpenTagMatch[0]
-    const hasWidth = /\bwidth\s*=\s*["'][^"']+["']/.test(svgOpenTag)
-    const hasHeight = /\bheight\s*=\s*["'][^"']+["']/.test(svgOpenTag)
-
-    // Try to get dimensions from viewBox if no explicit width/height
-    const viewBoxMatch = svgOpenTag.match(/viewBox\s*=\s*["']([^"']+)["']/)
-
-    if (!hasWidth && !hasHeight) {
-      if (viewBoxMatch) {
-        const viewBoxParts = viewBoxMatch[1].split(/\s+/)
-        if (viewBoxParts.length >= 4) {
-          const vbWidth = parseFloat(viewBoxParts[2])
-          const vbHeight = parseFloat(viewBoxParts[3])
-          const scale = minSize / Math.max(vbWidth, vbHeight)
-          const newWidth = Math.round(vbWidth * scale)
-          const newHeight = Math.round(vbHeight * scale)
-          svgContent = svgContent.replace('<svg', `<svg width="${newWidth}" height="${newHeight}"`)
-        } else {
-          svgContent = svgContent.replace('<svg', `<svg width="${minSize}" height="${minSize}"`)
-        }
-      } else {
-        svgContent = svgContent.replace('<svg', `<svg width="${minSize}" height="${minSize}"`)
-      }
-    }
-
-    return svgContent
   }
 
   public dispose () {

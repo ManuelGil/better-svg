@@ -20,6 +20,7 @@ import { SvgGutterPreview, SvgHoverProvider } from './svgGutterPreview'
 import { optimize } from 'svgo/browser'
 import { prepareForOptimization, finalizeAfterOptimization } from './svgTransform'
 import { SUPPORTED_LANGUAGES } from './consts'
+import { formatBytes } from './utils'
 
 let previewProvider: SvgPreviewProvider
 let gutterPreview: SvgGutterPreview
@@ -52,7 +53,6 @@ export function activate (context: vscode.ExtensionContext) {
 
     // Register SVG Hover Provider for all supported languages
     const svgHoverProvider = new SvgHoverProvider()
-    
 
     context.subscriptions.push(
       vscode.languages.registerHoverProvider(
@@ -363,13 +363,6 @@ export async function optimizeSvgInline (document: vscode.TextDocument, svgConte
     const originalSizeBytes = originalSize
     const optimizedSizeBytes = optimizedSize
 
-    const formatBytes = (bytes: number): string => {
-      if (bytes < 1024) {
-        return `${bytes} bytes`
-      }
-      return `${(bytes / 1024).toFixed(2)} KB`
-    }
-
     vscode.window.showInformationMessage(
       `SVG optimized. Reduced from ${formatBytes(originalSizeBytes)} to ${formatBytes(optimizedSizeBytes)} (${savingPercent}% saved)`
     )
@@ -378,4 +371,4 @@ export async function optimizeSvgInline (document: vscode.TextDocument, svgConte
   }
 }
 
-export function deactivate () {}
+export function deactivate () { }

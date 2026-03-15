@@ -38,3 +38,88 @@ export function calculateSavings (originalContent: string, optimizedContent: str
     optimizedSizeFormatted: formatBytes(optimizedSize)
   }
 }
+
+export function propagateStrokeAndFill (svgContent: string): string {
+  const svgOpenTagMatch = svgContent.match(/<svg[^>]*>/i)
+  if (!svgOpenTagMatch) return svgContent
+
+  const svgOpenTag = svgOpenTagMatch[0]
+  const strokeMatch = svgOpenTag.match(/\bstroke\s*=\s*["']([^"']+)["']/)
+  const stroke = strokeMatch ? strokeMatch[1] : null
+
+  if (stroke) {
+    const shapeElements = ['path', 'line', 'polyline', 'polygon', 'circle', 'ellipse', 'rect']
+    const shapeRegex = new RegExp(`<(${shapeElements.join('|')})([^>]*?)(\\/?>)`, 'gi')
+
+    svgContent = svgContent.replace(shapeRegex, (match, tagName, attrs, ending) => {
+      if (attrs && /\bstroke\s*=/.test(attrs)) {
+        return match
+      }
+      return `<${tagName}${attrs || ''} stroke="${stroke}"${ending}`
+    })
+  }
+
+  return svgContent
+}
+
+function ensureMinimumSizeCore (svgContent: string, minSize: number): string {
+  const svgOpenTagMatch = svgContent.match(/<svg[^>]*>/i)
+  if (!svgOpenTagMatch) return svgContent
+
+  const svgOpenTag = svgOpenTagMatch[0]
+  const hasWidth = /\bwidth\s*=\s*["'][^"']+["']/.test(svgOpenTag)
+  const hasHeight = /\bheight\s*=\s*["'][^"']+["']/.test(svgOpenTag)
+  const viewBoxMatch = svgOpenTag.match(/viewBox\s*=\s*["']([^"']+)["']/)
+
+  if (!hasWidth && !hasHeight) {
+    if (viewBoxMatch) {
+      const viewBoxParts = viewBoxMatch[1].split(/\s+/)
+      if (viewBoxParts.length >= 4) {
+        const vbWidth = parseFloat(viewBoxParts[2])
+        const vbHeight = parseFloat(viewBoxParts[3])
+        const scale = minSize / Math.max(vbWidth, vbHeight)
+        const newWidth = Math.round(vbWidth * scale)
+        const newHeight = Math.round(vbHeight * scale)
+        svgContent = svgContent.replace('<svg', `<svg width="${newWidth}" height="${newHeight}"`)
+      } else {
+        svgContent = svgContent.replace('<svg', `<svg width="${minSize}" height="${minSize}"`)
+      }
+    } else {
+      svgContent = svgContent.replace('<svg', `<svg width="${minSize}" height="${minSize}"`)
+    }
+  }
+
+  return svgContent
+}
+
+export function ensureMinimumSizeHover (svgContent: string, minSize: number): string {
+  svgContent = ensureMinimumSizeCore(svgContent, minSize)
+
+  const svgOpenTagMatch = svgContent.match(/<svg[^>]*>/i)
+  if (!svgOpenTagMatch) return svgContent
+
+  const svgOpenTag = svgOpenTagMatch[0]
+  const widthMatch = svgOpenTag.match(/\bwidth\s*=\s*["'](\d+(?:\.\d+)?)(?:px)?["']/)
+  const heightMatch = svgOpenTag.match(/\bheight\s*=\s*["'](\d+(?:\.\d+)?)(?:px)?["']/)
+
+  if (widthMatch && heightMatch) {
+    const width = parseFloat(widthMatch[1])
+    const height = parseFloat(heightMatch[1])
+
+    if (width < minSize && height < minSize) {
+      const scale = minSize / Math.max(width, height)
+      const newWidth = Math.round(width * scale)
+      const newHeight = Math.round(height * scale)
+
+      svgContent = svgContent
+        .replace(/\bwidth\s*=\s*["']\d+(?:\.\d+)?(?:px)?["']/, `width="${newWidth}"`)
+        .replace(/\bheight\s*=\s*["']\d+(?:\.\d+)?(?:px)?["']/, `height="${newHeight}"`)
+    }
+  }
+
+  return svgContent
+}
+
+export function ensureMinimumSizeGutter (svgContent: string, minSize: number): string {
+  return ensureMinimumSizeCore(svgContent, minSize)
+}
