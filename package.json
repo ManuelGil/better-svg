@@ -32,14 +32,20 @@
     "node": ">=18.15.0"
   },
   "activationEvents": [
-    "onLanguage:svg",
-    "onLanguage:xml",
     "onLanguage:astro",
-    "onLanguage:javascriptreact",
-    "onLanguage:typescriptreact",
-    "onLanguage:svelte",
-    "onLanguage:vue",
     "onLanguage:django-html",
+    "onLanguage:ejs",
+    "onLanguage:erb",
+    "onLanguage:html",
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onLanguage:php",
+    "onLanguage:svelte",
+    "onLanguage:svg",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "onLanguage:vue",
+    "onLanguage:xml",
     "onLanguage:liquid"
   ],
   "categories": [

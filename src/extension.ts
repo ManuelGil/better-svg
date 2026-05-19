@@ -56,7 +56,10 @@ export function activate (context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
       vscode.languages.registerHoverProvider(
-        SUPPORTED_LANGUAGES.map(lang => ({ language: lang })),
+        SUPPORTED_LANGUAGES.map((language) => ({
+          language,
+          scheme: 'file',
+        })),
         svgHoverProvider
       )
     )
