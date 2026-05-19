@@ -16,14 +16,14 @@
 
 import * as vscode from 'vscode'
 import * as fs from 'fs'
-import { optimizeSvgDocument } from './extension'
+import { optimizeSvgDocument } from './svgOptimizationService'
 
 export class SvgPreviewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'betterSvg.preview'
   private _view?: vscode.WebviewView
   private _currentDocument?: vscode.TextDocument
 
-  constructor (private readonly context: vscode.ExtensionContext) {}
+  constructor (private readonly context: vscode.ExtensionContext) { }
 
   public get isVisible (): boolean {
     return this._view?.visible ?? false
@@ -89,7 +89,6 @@ export class SvgPreviewProvider implements vscode.WebviewViewProvider {
   private getHtmlForWebview (webview: vscode.Webview, document: vscode.TextDocument | null): string {
     try {
       const svgContent = document ? document.getText() : '<svg></svg>'
-
 
       // Get default color from configuration
       const config = vscode.workspace.getConfiguration('betterSvg')
@@ -159,6 +158,4 @@ export class SvgPreviewProvider implements vscode.WebviewViewProvider {
     )
     vscode.workspace.applyEdit(edit)
   }
-
-
 }
